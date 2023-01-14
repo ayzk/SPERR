@@ -286,101 +286,189 @@ void sperr::SYM::SYM_IDWT(double* input, size_t N, double* output)
   this->DOWNSAMPLING_CONV(input + N / 2, N / 2, sym13_rec_hi.data(), sym13_rec_hi.size(), output);
 }
 
-
-//TODO output should have the same size as input, but current it is not the case.
+// TODO output should have the same size as input, but current it is not the case.
 void sperr::SYM::UPSAMPLING_CONV(double* input,
                                  size_t N,
                                  const TYPE* filter,
                                  size_t F,
                                  double* output)
 {
-  if ((F % 2) || (N < F / 2))
-    return;
+  size_t const start = F / 4;
+  size_t i = start;
+  size_t const end = N + start - (((F / 2) % 2) ? 0 : 1);
+  size_t o = 0;
 
-  // Perform only stage 2 - all elements in the filter overlap an input element.
-  {
-    size_t o, i;
-    for (o = 0, i = F / 2 - 1; i < N; ++i, o += 2) {
-      TYPE sum_even = 0;
-      TYPE sum_odd = 0;
-      size_t j;
-      for (j = 0; j < F / 2; ++j) {
-        sum_even += filter[j * 2] * input[i - j];
-        sum_odd += filter[j * 2 + 1] * input[i - j];
+  if (F % 2) {
+    exit(0); /* Filter must have even-length. */
+  }
+
+  if ((F / 2) % 2 == 0) {
+    // Shift output one element right. This is necessary for perfect reconstruction.
+
+    // i = N-1; even element goes to output[O-1], odd element goes to output[0]
+    size_t j = 0;
+    while (j <= start - 1) {
+      size_t k;
+      for (k = 0; k < N && j <= start - 1; ++k, ++j) {
+        output[2 * N - 1] += filter[2 * (start - 1 - j)] * input[k];
+        output[0] += filter[2 * (start - 1 - j) + 1] * input[k];
       }
-      output[o] += sum_even;
-      output[o + 1] += sum_odd;
+    }
+    for (; j <= N + start - 1 && j < F / 2; ++j) {
+      output[2 * N - 1] += filter[2 * j] * input[N + start - 1 - j];
+      output[0] += filter[2 * j + 1] * input[N + start - 1 - j];
+    }
+    while (j < F / 2) {
+      size_t k;
+      for (k = 0; k < N && j < F / 2; ++k, ++j) {
+        output[2 * N - 1] += filter[2 * j] * input[N - 1 - k];
+        output[0] += filter[2 * j + 1] * input[N - 1 - k];
+      }
+    }
+
+    o += 1;
+  }
+
+  for (; i < F / 2 && i < N; ++i, o += 2) {
+    size_t j = 0;
+    for (; j <= i; ++j) {
+      output[o] += filter[2 * j] * input[i - j];
+      output[o + 1] += filter[2 * j + 1] * input[i - j];
+    }
+    while (j < F / 2) {
+      size_t k;
+      for (k = 0; k < N && j < F / 2; ++k, ++j) {
+        output[o] += filter[2 * j] * input[N - 1 - k];
+        output[o + 1] += filter[2 * j + 1] * input[N - 1 - k];
+      }
+    }
+  }
+
+  for (; i < N; ++i, o += 2) {
+    size_t j;
+    for (j = 0; j < F / 2; ++j) {
+      output[o] += filter[2 * j] * input[i - j];
+      output[o + 1] += filter[2 * j + 1] * input[i - j];
+    }
+  }
+
+  for (; i < F / 2 && i < end; ++i, o += 2) {
+    size_t j = 0;
+    while (i - j >= N) {
+      size_t k;
+      for (k = 0; k < N && i - j >= N; ++k, ++j) {
+        output[o] += filter[2 * (i - N - j)] * input[k];
+        output[o + 1] += filter[2 * (i - N - j) + 1] * input[k];
+      }
+    }
+    for (; j <= i && j < F / 2; ++j) {
+      output[o] += filter[2 * j] * input[i - j];
+      output[o + 1] += filter[2 * j + 1] * input[i - j];
+    }
+    while (j < F / 2) {
+      size_t k;
+      for (k = 0; k < N && j < F / 2; ++k, ++j) {
+        output[o] += filter[2 * j] * input[N - 1 - k];
+        output[o + 1] += filter[2 * j + 1] * input[N - 1 - k];
+      }
+    }
+  }
+
+  for (; i < end; ++i, o += 2) {
+    size_t j = 0;
+    while (i - j >= N) {
+      size_t k;
+      for (k = 0; k < N && i - j >= N; ++k, ++j) {
+        output[o] += filter[2 * (i - N - j)] * input[k];
+        output[o + 1] += filter[2 * (i - N - j) + 1] * input[k];
+      }
+    }
+    for (; j <= i && j < F / 2; ++j) {
+      output[o] += filter[2 * j] * input[i - j];
+      output[o + 1] += filter[2 * j + 1] * input[i - j];
     }
   }
 }
 
-
-
-//TODO output should have the same size as input, but current it is not the case.
+// TODO output should have the same size as input, but current it is not the case.
 void sperr::SYM::DOWNSAMPLING_CONV(double* input,
                                    size_t N,
                                    const TYPE* filter,
                                    size_t F,
                                    double* output)
 {
-  size_t step = 2;
-  size_t i = step - 1, o = 0;
+  size_t step = 2, fstep = 1;
+  size_t i = F / 2, o = 0;
+  const size_t padding = (step - (N % step)) % step;
+
   for (; i < F && i < N; i += step, ++o) {
     TYPE sum = 0;
     size_t j;
-    for (j = 0; j <= i; ++j) {
+    size_t k_start = 0;
+    for (j = 0; j <= i; j += fstep)
       sum += filter[j] * input[i - j];
-    }
+    if (fstep > 1)
+      k_start = j - (i + 1);
     while (j < F) {
       size_t k;
-      for (k = 0; k < N && j < F; ++j, ++k)
-        sum += filter[j] * input[k];
-      for (k = 0; k < N && j < F; ++k, ++j)
+      for (k = k_start; k < padding && j < F; k += fstep, j += fstep)
+        sum += filter[j] * input[N - 1];
+      for (k = k_start; k < N && j < F; k += fstep, j += fstep)
         sum += filter[j] * input[N - 1 - k];
     }
     output[o] = sum;
   }
+
   for (; i < N; i += step, ++o) {
     TYPE sum = 0;
     size_t j;
-    for (j = 0; j < F; ++j)
+    for (j = 0; j < F; j += fstep)
       sum += input[i - j] * filter[j];
     output[o] = sum;
   }
-  for (; i < F; i += step, ++o) {
+
+  for (; i < F && i < N + F / 2; i += step, ++o) {
     TYPE sum = 0;
     size_t j = 0;
-
+    size_t k_start = 0;
     while (i - j >= N) {
       size_t k;
-      for (k = 0; k < N && i - j >= N; ++j, ++k)
-        sum += filter[i - N - j] * input[N - 1 - k];
-      for (k = 0; k < N && i - j >= N; ++j, ++k)
+      // for simplicity, not using fstep here
+      for (k = 0; k < padding && i - j >= N; ++k, ++j)
+        sum += filter[i - N - j] * input[N - 1];
+      for (k = 0; k < N && i - j >= N; ++k, ++j)
         sum += filter[i - N - j] * input[k];
     }
-    for (; j <= i; ++j)
+    if (fstep > 1)
+      j += (fstep - j % fstep) % fstep;  // move to next non-zero entry
+    for (; j <= i; j += fstep)
       sum += filter[j] * input[i - j];
+    if (fstep > 1)
+      k_start = j - (i + 1);
     while (j < F) {
       size_t k;
-      for (k = 0; k < N && j < F; ++j, ++k)
-        sum += filter[j] * input[k];
-      for (k = 0; k < N && j < F; ++k, ++j)
+      for (k = k_start; k < padding && j < F; k += fstep, j += fstep)
+        sum += filter[j] * input[N - 1];
+      for (k = k_start; k < N && j < F; k += fstep, j += fstep)
         sum += filter[j] * input[N - 1 - k];
     }
     output[o] = sum;
   }
 
-  for (; i < N + F - 1; i += step, ++o) {
+  for (; i < N + F / 2; i += step, ++o) {
     TYPE sum = 0;
     size_t j = 0;
     while (i - j >= N) {
+      // for simplicity, not using fstep here
       size_t k;
-      for (k = 0; k < N && i - j >= N; ++j, ++k)
-        sum += filter[i - N - j] * input[N - 1 - k];
-      for (k = 0; k < N && i - j >= N; ++j, ++k)
+      for (k = 0; k < padding && i - j >= N; ++k, ++j)
+        sum += filter[i - N - j] * input[N - 1];
+      for (k = 0; k < N && i - j >= N; ++k, ++j)
         sum += filter[i - N - j] * input[k];
     }
-    for (; j < F; ++j)
+    if (fstep > 1)
+      j += (fstep - j % fstep) % fstep;  // move to next non-zero entry
+    for (; j < F; j += fstep)
       sum += filter[j] * input[i - j];
     output[o] = sum;
   }

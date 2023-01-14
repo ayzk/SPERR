@@ -43,6 +43,11 @@ int main(int argc, char* argv[])
     const std::chrono::duration<double> diffT = endT - startT;
     std::cout << "[CDF97] Time for reverse transforms: " << diffT.count() << std::endl;
   }
+  std::vector<float> output_cdf(cdf.view_data().data(),
+                                cdf.view_data().data() + cdf.view_data().size());
+  auto stat_cdf = sperr::calc_stats(in_buf.data(), output_cdf.data(), in_buf.size(), 1);
+  printf("Stat: rmse = %f, linfty = %f, psnr = %fdB, orig_min = %f, orig_max = %f\n", stat_cdf[0],
+         stat_cdf[1], stat_cdf[2], stat_cdf[3], stat_cdf[4]);
 
   {
     const auto startT = std::chrono::high_resolution_clock::now();
@@ -58,9 +63,9 @@ int main(int argc, char* argv[])
     const std::chrono::duration<double> diffT = endT - startT;
     std::cout << "[SYM13] Time for reverse transforms: " << diffT.count() << std::endl;
   }
-//  std::vector<float> output(sym.view_data().data(),
-//                            sym.view_data().data() + sym.view_data().size());
-//  auto stat = sperr::calc_stats(in_buf.data(), output.data(), in_buf.size(), 1);
-//  printf("Sam: rmse = %f, linfty = %f, psnr = %fdB, orig_min = %f, orig_max = %f\n", stat[0],
-//         stat[1], stat[2], stat[3], stat[4]);
+  std::vector<float> output_sym(sym.view_data().data(),
+                            sym.view_data().data() + sym.view_data().size());
+  auto stat = sperr::calc_stats(in_buf.data(), output_sym.data(), in_buf.size(), 1);
+  printf("Stat: rmse = %f, linfty = %f, psnr = %fdB, orig_min = %f, orig_max = %f\n", stat[0],
+         stat[1], stat[2], stat[3], stat[4]);
 }
