@@ -15,3 +15,5 @@ target_link_libraries( compressor_3d PUBLIC SPERR )
 add_executable( decompressor_3d decompressor_3d.cpp )
 target_link_libraries( decompressor_3d PUBLIC SPERR )
 
+add_executable( sym_test sym_test.cpp)
+target_link_libraries( sym_test PUBLIC SPERR )

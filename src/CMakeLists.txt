@@ -2,6 +2,7 @@ add_library( SPERR
              sperr_helper.cpp
              Conditioner.cpp
              CDF97.cpp
+             SYM.cpp
              SPECK_Storage.cpp
              SPECK2D.cpp
              SPECK3D.cpp
