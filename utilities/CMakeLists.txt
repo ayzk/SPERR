@@ -17,3 +17,8 @@ target_link_libraries( decompressor_3d PUBLIC SPERR )
 
 add_executable( sym_test sym_test.cpp)
 target_link_libraries( sym_test PUBLIC SPERR )
+
+find_package(pybind11 REQUIRED)  # or `add_subdirectory(pybind11)`
+add_executable( pywt_test pywt_test.cpp)
+target_link_libraries( pywt_test PUBLIC SPERR PRIVATE pybind11::embed)
+
