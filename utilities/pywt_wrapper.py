@@ -3,6 +3,8 @@ import pywt
 import pickle
 import time
 
+structure = None
+
 
 def dwt(data, wave_type):
     start = time.time()
@@ -10,15 +12,16 @@ def dwt(data, wave_type):
     d = pywt.coeffs_to_array(c)
     end = time.time()
     print('pure python time without c++ binding', end - start)
-    return {
-        'shape': d[0].shape,
-        'structure': pickle.dumps(d[1]),
-        'data': np.ravel(d[0].astype(np.float32)).tolist()
-    }
+    global shape, structure
+    structure = pickle.dumps(d[1])
+    return d[0].astype(np.float32)
+
+def dwt_structure():
+    global structure
+    return structure
 
 
 def idwt(data, wave_structure, wave_type, ori_shape):
-    # data = np.array(data, copy=False).astype(np.float32).reshape(shape)
     start = time.time()
     structure = pickle.loads(wave_structure)
     dc_c = pywt.array_to_coeffs(data, structure)
@@ -30,4 +33,4 @@ def idwt(data, wave_structure, wave_type, ori_shape):
             b = b[:ori_shape[0], :ori_shape[1], :ori_shape[2]]
     end = time.time()
     print('pure python time without c++ binding', end - start)
-    return np.ravel(b.astype(np.float32)).tolist()
+    return b.astype(np.float32)

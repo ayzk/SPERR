@@ -6,7 +6,6 @@
 #include <cstdlib>
 #include <iostream>
 #include "sperr_helper.h"
-// PYBIND11_MAKE_OPAQUE(std::vector<float>);
 namespace py = pybind11;
 int main(int argc, char* argv[])
 {
@@ -16,33 +15,27 @@ int main(int argc, char* argv[])
 
   // append source dir to sys.path, and python interpreter would find your custom python file
   py::module_::import("sys").attr("path").attr("append")(HOME + "/code/sperr/utilities/");
-  auto ori_data = sperr::read_whole_file<float>(HOME + "/data/hurricane-100x500x500/Uf48.bin.dat");
+  auto pycode = py::module_::import("pywt_wrapper");
 
   auto endT = std::chrono::high_resolution_clock::now();
-  std::cout << "env time: " << (std::chrono::duration<double>(endT - startT)).count() << std::endl;
+  std::cout << "py prepare env time: " << (std::chrono::duration<double>(endT - startT)).count() << std::endl;
+
+  auto ori_data = sperr::read_whole_file<float>(HOME + "/data/hurricane-100x500x500/Uf48.bin.dat");
+
 
   // wavelet
   startT = std::chrono::high_resolution_clock::now();
   py::array_t<float> ori_data_py({100, 500, 500}, ori_data.data());
-  auto dwt_result =
-      py::module_::import("pywt_wrapper")
-          .attr("dwt")(ori_data_py, "sym13");
-
-  auto dwt_structure = dwt_result["structure"].cast<std::string>();
-  auto dwt_shape = dwt_result["shape"].cast<std::vector<size_t>>();
-  auto dwt_data = dwt_result["data"].cast<std::vector<float>>();
-
+  py::array_t<float> dwt_data = pycode.attr("dwt")(ori_data_py, "sym13");
+  auto dwt_structure = pycode.attr("dwt_structure")().cast<std::string>();
   endT = std::chrono::high_resolution_clock::now();
   std::cout << "Time for wavelet: " << (std::chrono::duration<double>(endT - startT)).count()
             << std::endl;
 
   // reverse wavelet
   startT = std::chrono::high_resolution_clock::now();
-  py::array_t<float> dwt_data_py(dwt_shape, dwt_data.data());
-  auto idwt_result = py::module_::import("pywt_wrapper")
-                         .attr("idwt")(dwt_data_py, py::bytes(dwt_structure), "sym13",
-                                       std::vector<size_t>({100, 500, 500}));
-  auto idwt_data = idwt_result.cast<std::vector<float>>();
+  py::array_t<float> idwt_data = pycode.attr("idwt")(dwt_data, py::bytes(dwt_structure), "sym13",
+                                                     std::vector<size_t>({100, 500, 500}));
   endT = std::chrono::high_resolution_clock::now();
   std::cout << "Time for reverse wavelet: "
             << (std::chrono::duration<double>(endT - startT)).count() << std::endl;
