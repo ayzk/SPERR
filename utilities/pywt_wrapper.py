@@ -5,8 +5,8 @@ import time
 
 
 def dwt(data, shape, wave_type):
-    x = np.asarray(data).astype(np.float32).reshape(shape)
     start = time.time()
+    x = np.array(data, copy=False).astype(np.float32).reshape(shape)
     c = pywt.wavedecn(x, wave_type, mode="periodization")
     d = pywt.coeffs_to_array(c)
     end = time.time()
@@ -14,12 +14,12 @@ def dwt(data, shape, wave_type):
     return {
         'shape': d[0].shape,
         'structure': pickle.dumps(d[1]),
-        'data': d[0].astype(np.float32).flatten()
+        'data': np.ravel(d[0].astype(np.float32)).tolist()
     }
 
 
 def idwt(data, shape, wave_structure, wave_type, ori_shape):
-    data = np.asarray(data).astype(np.float32).reshape(shape)
+    data = np.array(data, copy=False).astype(np.float32).reshape(shape)
     start = time.time()
     structure = pickle.loads(wave_structure)
     dc_c = pywt.array_to_coeffs(data, structure)
@@ -31,4 +31,4 @@ def idwt(data, shape, wave_structure, wave_type, ori_shape):
             b = b[:ori_shape[0], :ori_shape[1], :ori_shape[2]]
     end = time.time()
     print('pure python time without c++ binding', end - start)
-    return b.astype(np.float32).flatten()
+    return np.ravel(b.astype(np.float32)).tolist()
