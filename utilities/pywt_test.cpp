@@ -7,7 +7,6 @@
 #include <iostream>
 #include "sperr_helper.h"
 namespace py = pybind11;
-//py::module_ pywavelet;
 
 template <class T>
 void wavelet(T* data, std::vector<size_t>& dims)
